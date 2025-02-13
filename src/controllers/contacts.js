@@ -1,3 +1,5 @@
+import * as fs from 'node:fs/promises';
+import path from 'node:path';
 import createHttpError from 'http-errors';
 
 import {
@@ -9,10 +11,9 @@ import {
 } from '../services/contacts.js';
 import { parsePaginationParams } from '../utils/parsePaginationParams.js';
 import { parseSortParams } from '../utils/parseSortParams.js';
+import { uploadToCloudinary } from '../utils/uploadToCloudinary.js';
 
 export async function getContactsController(req, res) {
-  console.log(req.user);
-
   const { page, perPage, totalPages, hasPreviousPage, hasNextPage } =
     parsePaginationParams(req.query);
   const { sortBy, sortOrder } = parseSortParams(req.query);
@@ -46,7 +47,6 @@ export async function getContactsController(req, res) {
 export async function getContactController(req, res) {
   const { id } = req.params;
   const userId = req.user._id;
-  console.log(userId);
 
   const contact = await getContact(id, userId);
   if (contact === null) {
@@ -61,7 +61,21 @@ export async function getContactController(req, res) {
 }
 
 export async function createContactController(req, res) {
-  console.log(req.body);
+  let photo = null;
+  if (typeof req.file !== 'undefined') {
+    if (process.env.ENABLE_CLOUDINARY === 'true') {
+      const result = await uploadToCloudinary(req.file.path);
+      await fs.unlink(req.file.path);
+      photo = result.secure_url;
+    } else {
+      await fs.rename(
+        req.file.path,
+        path.resolve('src', 'public', 'photo', req.file.filename),
+      );
+      photo = `http://localhost:8080/contacts/photos/${req.file.filename}`;
+    }
+  }
+
   const contact = {
     name: req.body.name,
     phoneNumber: req.body.phoneNumber,
@@ -69,6 +83,7 @@ export async function createContactController(req, res) {
     isFavourite: req.body.isFavourite,
     contactType: req.body.contactType,
     userId: req.user._id,
+    photo,
   };
   const result = await createContact(contact);
   res.status(201).send({
@@ -89,12 +104,28 @@ export async function deleteContactController(req, res) {
 export async function updContactController(req, res) {
   const { id } = req.params;
   const userId = req.user._id;
+
+  let photo = null;
+  if (typeof req.file !== 'undefined') {
+    if (process.env.ENABLE_CLOUDINARY === 'true') {
+      const resultPhoto = await uploadToCloudinary(req.file.path);
+      await fs.unlink(req.file.path);
+      photo = resultPhoto.secure_url;
+    } else {
+      await fs.rename(
+        req.file.path,
+        path.resolve('src', 'public', 'photo', req.file.filename),
+      );
+      photo = `http://localhost:8080/contacts/photos/${req.file.filename}`;
+    }
+  }
   const contact = {
     name: req.body.name,
     phoneNumber: req.body.phoneNumber,
     email: req.body.email,
     isFavourite: req.body.isFavourite,
     contactType: req.body.contactType,
+    photo,
   };
 
   const result = await updContact(id, contact, userId);
