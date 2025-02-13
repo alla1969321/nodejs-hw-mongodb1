@@ -7,11 +7,37 @@ import {
   deleteContact,
   updContact,
 } from '../services/contacts.js';
+import { parsePaginationParams } from '../utils/parsePaginationParams.js';
+import { parseSortParams } from '../utils/parseSortParams.js';
 
 export async function getContactsController(req, res) {
-  const contacts = await getContacts();
+  const { page, perPage, totalPages, hasPreviousPage, hasNextPage } =
+    parsePaginationParams(req.query);
+  const { sortBy, sortOrder } = parseSortParams(req.query);
 
-  res.send({ status: 200, data: contacts });
+  const contactsResult = await getContacts({
+    page,
+    perPage,
+    sortBy,
+    sortOrder,
+    totalPages,
+    hasPreviousPage,
+    hasNextPage,
+  });
+
+  res.send({
+    status: 200,
+    message: 'Successfully found contacts!',
+    data: {
+      data: contactsResult.contacts,
+      page: contactsResult.page,
+      perPage: contactsResult.perPage,
+      totalItems: contactsResult.totalItems,
+      totalPages: contactsResult.totalPages,
+      hasPreviousPage: contactsResult.hasPreviousPage,
+      hasNextPage: contactsResult.hasNextPage,
+    },
+  });
 }
 
 export async function getContactController(req, res) {
@@ -50,11 +76,7 @@ export async function deleteContactController(req, res) {
   if (result === null) {
     throw new createHttpError.NotFound('Contact not found');
   }
-  res.send({
-    status: 200,
-    message: 'Contact delete successfully',
-    data: result,
-  });
+  res.status(204).send();
 }
 export async function updContactController(req, res) {
   const { id } = req.params;
