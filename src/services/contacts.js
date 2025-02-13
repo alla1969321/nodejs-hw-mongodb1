@@ -1,0 +1,42 @@
+import { Contact } from '../services/contact.js';
+import { parseSortParams } from '../utils/parseSortParams.js';
+
+export async function getContacts({ page, perPage, sortBy, sortOrder }) {
+  const skip = page > 0 ? (page - 1) * perPage : 0;
+
+  const { sortBy: validSortBy, sortOrder: validSortOrder } = parseSortParams({
+    sortBy,
+    sortOrder,
+  });
+
+  const totalItems = await Contact.countDocuments();
+
+  const contacts = await Contact.find()
+    .sort({ [validSortBy]: validSortOrder === 'asc' ? 1 : -1 })
+    .skip(skip)
+    .limit(perPage);
+
+  const totalPages = Math.ceil(totalItems / perPage);
+
+  return {
+    contacts,
+    page,
+    perPage,
+    totalItems,
+    totalPages,
+    hasPreviousPage: page > 1,
+    hasNextPage: page < totalPages,
+  };
+}
+export function getContact(contactId) {
+  return Contact.findById(contactId);
+}
+export function createContact(contact) {
+  return Contact.create(contact);
+}
+export function deleteContact(contactId) {
+  return Contact.findByIdAndDelete(contactId);
+}
+export function updContact(contactId, contact) {
+  return Contact.findByIdAndUpdate(contactId, contact, { new: true });
+}
