@@ -1,7 +1,15 @@
-import { Contact } from '../services/contact.js';
+import mongoose from 'mongoose';
+
+import { Contact } from '../models/contact.js';
 import { parseSortParams } from '../utils/parseSortParams.js';
 
-export async function getContacts({ page, perPage, sortBy, sortOrder }) {
+export async function getContacts({
+  page,
+  perPage,
+  sortBy,
+  sortOrder,
+  userId,
+}) {
   const skip = page > 0 ? (page - 1) * perPage : 0;
 
   const { sortBy: validSortBy, sortOrder: validSortOrder } = parseSortParams({
@@ -9,9 +17,9 @@ export async function getContacts({ page, perPage, sortBy, sortOrder }) {
     sortOrder,
   });
 
-  const totalItems = await Contact.countDocuments();
+  const totalItems = await Contact.countDocuments({ userId });
 
-  const contacts = await Contact.find()
+  const contacts = await Contact.find({ userId })
     .sort({ [validSortBy]: validSortOrder === 'asc' ? 1 : -1 })
     .skip(skip)
     .limit(perPage);
@@ -28,15 +36,17 @@ export async function getContacts({ page, perPage, sortBy, sortOrder }) {
     hasNextPage: page < totalPages,
   };
 }
-export function getContact(contactId) {
-  return Contact.findById(contactId);
+export function getContact(contactId, userId) {
+  return Contact.findOne({ _id: contactId, userId });
 }
 export function createContact(contact) {
   return Contact.create(contact);
 }
-export function deleteContact(contactId) {
-  return Contact.findByIdAndDelete(contactId);
+export function deleteContact(contactId, userId) {
+  return Contact.findOneAndDelete({ _id: contactId, userId });
 }
-export function updContact(contactId, contact) {
-  return Contact.findByIdAndUpdate(contactId, contact, { new: true });
+export function updContact(contactId, contact, userId) {
+  return Contact.findOneAndUpdate({ _id: contactId, userId }, contact, {
+    new: true,
+  });
 }
